@@ -3,7 +3,7 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QMessageBox
 from fourierUI import Ui_MainWindow
 import sys
-
+from PIL import Image
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -13,8 +13,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(500,650)
         self.ui.btnBrowse.clicked.connect(self.Browse)
     def Browse(self):
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', "Image files (*.jpg *.png *jpeg)")
         try:
-            filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', '', "Image files (*.jpg *.png *jpeg)")
+            img = Image.open(filename)
+            img.verify()
+        except (IOError, SyntaxError):
+            fileError = QMessageBox()
+            fileError.setIcon(QMessageBox.Warning)
+            fileError.setWindowTitle('WARNING')
+            fileError.setText('There is a problem with the file (corrupt)!!!!')
+            fileError.setStandardButtons(QMessageBox.Ok)
+            fileError.exec_()
+        else:
             if filename:
                 pixmap = QPixmap(filename)
                 wid = QPixmap.width(pixmap)
@@ -30,13 +40,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     sizeError.setText('Only images of size 128x128 allowed!!!!')
                     sizeError.setStandardButtons(QMessageBox.Ok)
                     sizeError.exec_()
-        except:
-            fileError = QMessageBox()
-            fileError.setIcon(QMessageBox.Warning)
-            fileError.setWindowTitle('WARNING')
-            fileError.setText('Only images of size 128x128 allowed!!!!')
-            fileError.setStandardButtons(QMessageBox.Ok)
-            fileError.exec_()
 def main():
     app = QtWidgets.QApplication(sys.argv)
     application = ApplicationWindow()
