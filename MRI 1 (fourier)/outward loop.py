@@ -9,22 +9,28 @@ from PyQt5.QtGui import QPixmap, QImage
 from PyQt5.QtWidgets import QMessageBox
 from fourierUI import Ui_MainWindow
 from matplotlib import pyplot as plt
-from time import sleep
+from PyQt5 import QtTest
+import time
 class ApplicationWindow(QtWidgets.QMainWindow):
+
     def __init__(self):
         super(ApplicationWindow, self).__init__()
+        #Setup window
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setMinimumSize(900,850)
+        self.img = None
+        self.imgMat = 0
+        #Actions
         self.ui.btnBrowse.clicked.connect(self.Browse)
         self.ui.btnStart.clicked.connect(self.Start)
         self.ui.btnStart.setEnabled(True)
         self.ui.btnStart.setDefault(True)
         self.ui.btnToggle.setCheckable(True)
         self.ui.btnToggle.toggle()
-        self.ui.btnToggle.clicked.connect(self.btnstate)
-        self.img = None
-        self.imgMat = 0
+        self.ui.btnToggle.clicked.connect(self.Btnstate)
+        self.ui.nLines.valueChanged.connect(self.Valuechange)
+        #Styling
         self.ui.btnToggle.setStyleSheet('QPushButton {background-color: #0F7173; color: white; font-weight: bold; font-size: 20px;}')
         self.ui.btnStart.setStyleSheet('QPushButton {background-color: #0F7173; color: white; font-weight: bold; font-size: 20px;}')
         self.ui.btnBrowse.setStyleSheet('QPushButton {background-color: #0F7173; color: white; font-weight: bold; font-size: 20px;}')
@@ -37,6 +43,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ui.nLines.setStyleSheet('QSpinBox {background-color: white}')
         self.ui.lbnline.setStyleSheet('QLabel {font-weight: bold; font-size: 20px}')     
         self.setStyleSheet("background-color: #FACFAD;")
+
     def Browse(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(None, 'Open file', '', "Image files (*.jpg *.png *jpeg)")
         if filename:
@@ -70,7 +77,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     sizeError.setStandardButtons(QMessageBox.Ok)
                     sizeError.exec_()
 
-    def btnstate(self):
+    def Valuechange(self, i):
+        self.ui.btnStart.setEnabled(True)
+
+    def Btnstate(self):
         if self.ui.btnToggle.isChecked():
             self.ui.btnToggle.setText('Continue')
         else:
@@ -80,7 +90,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         image = img.scaled(img.width(), img.height())
         cont.setScaledContents(True)
         cont.setPixmap(image)
-        
 
     def Start(self):
         if self.img is None:
@@ -96,12 +105,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.fft()
 
     def fft(self):
-        f = np.fft.fft2(self.imgMat)
-        fshift = np.fft.fftshift(f)
-        magnitude_spectrum = 20*np.log(np.abs(fshift))
-        yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
-        pixmap = QPixmap(QPixmap.fromImage(yourQImage))
-        self.Display(pixmap, self.ui.lbFFTimg)
         n = self.ui.nLines.value()
         if 128 % n != 0:
             nLineError = QMessageBox()
@@ -111,6 +114,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             nLineError.setStandardButtons(QMessageBox.Ok)
             nLineError.exec_()
         else:
+            f = np.fft.fft2(self.imgMat)
+            fshift = np.fft.fftshift(f)
+            magnitude_spectrum = 20*np.log(np.abs(fshift))
+            yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
+            pixmap = QPixmap(QPixmap.fromImage(yourQImage))
+            self.Display(pixmap, self.ui.lbFFTimg)
+            QtTest.QTest.qWait(200)
             i = 64 + n 
             j = 63 - n + 1
             while j > -n:
@@ -118,8 +128,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
                 pixmap = QPixmap(QPixmap.fromImage(yourQImage))
                 self.Display(pixmap, self.ui.lbFFTimg)
+                QtTest.QTest.qWait(50)
                 # shift back (we shifted the center before)
-                f_ishift = np.fft.ifftshift(fshift)
+                f_ishift = np.fft.ifftshift(magnitude_spectrum)
                 # inverse fft to get the image back 
                 img_back = np.fft.ifft2(f_ishift)
                 img_back = np.abs(img_back)
@@ -127,7 +138,34 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 pixmap = QPixmap(QPixmap.fromImage(yourQImage))
                 self.Display(pixmap, self.ui.lbImg)
                 i = i + n
-                j = j - n        
+                j = j - n
+                QtTest.QTest.qWait(50)
+            f = np.fft.fft2(self.imgMat)
+            fshift = np.fft.fftshift(f)
+            magnitude_spectrum = 20*np.log(np.abs(fshift))
+            yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
+            pixmap = QPixmap(QPixmap.fromImage(yourQImage))
+            self.Display(pixmap, self.ui.lbFFTimg)
+            QtTest.QTest.qWait(200)
+            for i in range(int(128 /(2*n))):
+                magnitude_spectrum[:(i*n)+n,:] = 0
+                magnitude_spectrum[:,:(i*n)+n] = 0
+                magnitude_spectrum[128-((i*n)+n):,:] = 0
+                magnitude_spectrum[:,128-((i*n)+n):] = 0
+                #cv2.imshow('image', self.image)
+                #cv2.waitKey(0)
+                #cv2.destroyAllWindows()
+                QtTest.QTest.qWait(50)
+                #(type(self.image))
+                yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
+                pixmap = QPixmap(QPixmap.fromImage(yourQImage))
+                self.Display(pixmap, self.ui.lbFFTimg)
+                f_ishift = np.fft.ifftshift(magnitude_spectrum) 
+                img_back = np.fft.ifft2(f_ishift)
+                img_back = np.abs(img_back)
+                yourImage=qimage2ndarray.array2qimage(img_back)
+                pix = QPixmap(QPixmap.fromImage(yourImage))
+                self.Display(pix, self.ui.lbImg) 
 #def main():
 
 
