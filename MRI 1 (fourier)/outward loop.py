@@ -11,7 +11,14 @@ from fourierUI import Ui_MainWindow
 from matplotlib import pyplot as plt
 from PyQt5 import QtTest
 import time
-class ApplicationWindow(QtWidgets.QMainWindow):
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, QObject
+import threading
+
+
+class ApplicationWindow(QtWidgets.QMainWindow, QObject):
+    increment_value = pyqtSignal()
+    decrement_value = pyqtSignal()
+    text_changed = pyqtSignal()
 
     def __init__(self):
         super(ApplicationWindow, self).__init__()
@@ -21,6 +28,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setMinimumSize(900,850)
         self.img = None
         self.imgMat = 0
+        self.increment = 0
+        self.decrement = 100
+        self.increment_value.connect(self.increment_progress)
+        self.decrement_value.connect(self.decrement_progress)
         #Actions
         self.ui.btnBrowse.clicked.connect(self.Browse)
         self.ui.btnStart.clicked.connect(self.Start)
@@ -69,6 +80,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     self.ui.lbFixedImg.setScaledContents(True)
                     self.ui.lbFixedImg.setPixmap(pixmap)
                     self.ui.btnStart.setEnabled(True)
+                    loopThread = threading.Thread(self ,target = self.fft, name = 'loop', args = None)
+                    loopThread.start()
                 else:
                     sizeError = QMessageBox()
                     sizeError.setIcon(QMessageBox.Warning)
@@ -78,7 +91,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     sizeError.exec_()
 
     def Valuechange(self, i):
-        self.ui.btnStart.setEnabled(True)
+        self.text_changed.emit()
 
     def Btnstate(self):
         if self.ui.btnToggle.isChecked():
@@ -129,8 +142,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 pixmap = QPixmap(QPixmap.fromImage(yourQImage))
                 self.Display(pixmap, self.ui.lbFFTimg)
                 QtTest.QTest.qWait(50)
-                # shift back (we shifted the center before)
-                f_ishift = np.fft.ifftshift(magnitude_spectrum)
+                fshift[j:i, j:i] = 0
+                f_ishift = np.fft.ifftshift(fshift)
                 # inverse fft to get the image back 
                 img_back = np.fft.ifft2(f_ishift)
                 img_back = np.abs(img_back)
@@ -152,6 +165,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 magnitude_spectrum[:,:(i*n)+n] = 0
                 magnitude_spectrum[128-((i*n)+n):,:] = 0
                 magnitude_spectrum[:,128-((i*n)+n):] = 0
+                fshift[:(i*n)+n,:] = 0
+                fshift[:,:(i*n)+n] = 0
+                fshift[128-((i*n)+n):,:] = 0
+                fshift[:,128-((i*n)+n):] = 0
                 #cv2.imshow('image', self.image)
                 #cv2.waitKey(0)
                 #cv2.destroyAllWindows()
@@ -160,12 +177,22 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 yourQImage=qimage2ndarray.array2qimage(magnitude_spectrum)
                 pixmap = QPixmap(QPixmap.fromImage(yourQImage))
                 self.Display(pixmap, self.ui.lbFFTimg)
-                f_ishift = np.fft.ifftshift(magnitude_spectrum) 
+                f_ishift = np.fft.ifftshift(fshift) 
                 img_back = np.fft.ifft2(f_ishift)
                 img_back = np.abs(img_back)
                 yourImage=qimage2ndarray.array2qimage(img_back)
                 pix = QPixmap(QPixmap.fromImage(yourImage))
                 self.Display(pix, self.ui.lbImg) 
+            self.fft()
+    @pyqtSlot()       
+    def increment_progress(self):
+        self.progress.setValue(self.increment)
+
+    @pyqtSlot()       
+    def decrement_progress(self):
+        self.progress.setValue(self.decrement)
+
+  
 #def main():
 
 
